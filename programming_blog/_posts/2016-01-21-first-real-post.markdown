@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "First real post!"
-date: 
+date: 2016-01-21 20:29:30 +0100 
 categories: jekyll hello update hosting
 ---
 
