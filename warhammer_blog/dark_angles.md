@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Son's of the Lion
+title: Sons of the Lion
 permalink: /DA/
 ---
 
