@@ -13,4 +13,5 @@ Anyway, if anyone does find this and look at the stuff, I hope you enjoy! Please
 
 
 Here's a test image! 
+![Some More Stuff!]({{ site.url }}/assets/IMG_20151226_172613.jpg)
 ![Some Cataphractii]({{ site.url }}/assets/Cataphractii.jpg)
