@@ -1,4 +1,4 @@
-# Welcome to Jekyll!
+#Welcome to Jekyll!
 #
 # This config file is meant for settings that affect your whole blog, values
 # which you are expected to set up once and rarely need to edit after that.
@@ -6,16 +6,14 @@
 # 'jekyll serve'. If you change this file, please restart the server process.
 
 # Site settings
-title: A warhammer PLOG
+title: Paint strokes and small blokes
 email: john.a.burchell@gmail.com
 description: > # this means to ignore newlines until "baseurl:"
-  Hi! this is my warhammer plog (painting blog?) where I'll be posting pictures of my recent painting projects
-  models and just general pics etc of my warhammer adventures. You'll find 30k, 40k and fantasy
-  stuff here. If you have any C&C or comments, feel free to get in touch!
+  Hi! this is my warhammer blog where I'll be posting pictures of my recent painting projects,
+  models and just general pics of my warhammer adventures. You'll find 30k, 40k and fantasy stuff here.
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "http://www.johnburchell.co.uk" # the base hostname & protocol for your site
+url: "http://warhammer.johnburchell.co.uk" # the base hostname & protocol for your site
 twitter_username: JohnBurch
-github_username:  JohnBurchell
 
 # Build settings
 markdown: kramdown
