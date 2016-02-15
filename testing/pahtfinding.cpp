@@ -4,44 +4,67 @@
 #include <queue>
 #include <unordered_map>
 #include <string>
+#include <functional>
 
 //Pre-allocate whole block for the pathfinder at the start -> based on amount of nodes? + a bit extra? Prevents allocations during
 //The running of the search.
 
+namespace
+{
+	struct Node
+	{
+		Node() : m_x(-1), m_y(-1) {}
+		Node(const int x, const int y) : m_x(x), m_y(y) {}
+		int m_x;
+		int m_y;
+
+		friend bool operator==(const Node& lhs, const Node& rhs)
+		{
+			return (lhs.m_x == rhs.m_x
+				&& lhs.m_y == rhs.m_y);
+		}
+
+		friend bool operator!=(const Node& lhs, const Node& rhs)
+		{
+			return !(lhs == rhs);
+		}
+
+		friend bool operator<(const Node& lhs, const Node& rhs)
+		{
+			return std::tie(lhs.m_x, lhs.m_y) < std::tie(rhs.m_x, rhs.m_y);
+		}
+	};
+
+
+	struct NodeHasher
+	{
+		std::size_t operator()(const Node& node) const
+		{
+			return ((std::hash<int>()(node.m_x) ^ std::hash<int>()(node.m_y << 1)));
+		}
+	};
+
+	int heuristic(const Node& a, const Node& b)
+	{
+		//Using Manhattan distance for now
+		return abs(a.m_x - b.m_x) + abs(a.m_y - b.m_y);
+	}
+
+	typedef std::unordered_map<Node, Node, NodeHasher> NodeMap;
+	typedef std::unordered_map<Node, int, NodeHasher> CostMap;
+}
 
 int FindPath(const int nStartX, const int nStartY,
 	const int nTargetX, const int nTargetY,
 	const unsigned char* pMap, const int nMapWidth, const int nMapHeight,
 	int* pOutBuffer, const int nOutBufferSize);
 
-struct Node
-{
-	Node() : m_x(-1), m_y(-1) {}
-	Node(const int x, const int y) : m_x(x), m_y(y) {}
-	int m_x;
-	int m_y;
-
-	bool operator==(const Node& other) const
-	{
-		return (m_x == other.m_x
-			 && m_y == other.m_y);
-	}
-};
-
-struct NodeHasher
-{
-	std::size_t operator()(const Node& node) const
-	{
-		return ((std::hash<int>()(node.m_x) ^ std::hash<int>()(node.m_y << 1)));
-	}
-};
-
 struct Graph
 {
 	Graph(const int width, const int height) : m_width(width), m_height(height), neighbour_positions(), m_pmap_size(height * width)
 	{
-										//N / E / S / W
-		 neighbour_positions = { Node{ 0, -1 }, Node{ 1, 0 }, Node{ 0, 1 }, Node{ -1, 0 } };
+		//N / E / S / W
+		neighbour_positions = { Node{ 0, -1 }, Node{ 1, 0 }, Node{ 0, 1 }, Node{ -1, 0 } };
 	}
 
 	int get_index_value(const int x, const int y) const
@@ -78,7 +101,7 @@ struct Graph
 	}
 
 	//BFS
-	int BFS(const int start_x, const int start_y, const int target_x ,const int target_y, 
+	int BFS(const int start_x, const int start_y, const int target_x, const int target_y,
 		const unsigned char* pMap, int* pOutBuffer)
 	{
 		auto frontier = std::queue<Node>();
@@ -91,7 +114,7 @@ struct Graph
 
 		Node current = start;
 
-		while (!frontier.empty()) 
+		while (!frontier.empty())
 		{
 			current = frontier.front();
 			frontier.pop();
@@ -116,7 +139,7 @@ struct Graph
 
 		std::vector<int> indecies{};
 
-		while (!(current == start))
+		while (current != start)
 		{
 			indecies.push_back(get_index_value(current.m_x, current.m_y));
 			current = node_paths[current];
@@ -131,8 +154,6 @@ struct Graph
 		return target_found ? indecies.size() : -1;
 	}
 
-	//Dijkstra
-
 	//A*
 
 	//A* with JPS
@@ -144,9 +165,127 @@ private:
 	int m_height;
 	int m_pmap_size;
 	std::vector<Node> neighbour_positions;
-	std::unordered_map<Node, Node, NodeHasher> node_paths;
+	NodeMap node_paths;
 };
 
+//PQ
+template<typename T, typename Number = int>
+struct PriorityQueue
+{
+	typedef std::pair<Number, T> PQElement;
+	std::priority_queue<PQElement, std::vector<PQElement>, std::greater<PQElement>> elements;
+
+	inline bool empty() const
+	{
+		return elements.empty();
+	}
+
+	inline void put(const T& item, const Number priority)
+	{
+		elements.emplace(priority, item);
+	}
+
+	inline T get()
+	{
+		T best_item = elements.top().second;
+		elements.pop();
+
+		return best_item;
+	}
+};
+
+//Dijkstra
+void dijkstra(Graph& graph, const Node& start, const Node& target, const unsigned char* pMap, NodeMap& came_from, CostMap& current_cost)
+{
+	PriorityQueue<Node> frontier;
+	frontier.put(start, 0);
+
+	came_from[start] = start;
+	current_cost[start] = 0;
+
+	while (!frontier.empty())
+	{
+		auto current = frontier.get();
+
+		if (current == target)
+		{
+			break;
+		}
+
+		for (auto& next : graph.neighbours(current.m_x, current.m_y, pMap))
+		{
+			int new_cost = current_cost[current] + 1;
+
+			if (!current_cost.count(next) || new_cost < current_cost[next])
+			{
+				current_cost[next] = new_cost;
+				came_from[next] = current;
+				frontier.put(next, new_cost);
+			}
+		}
+	}
+}
+
+//A* Search
+void a_star(Graph& graph, const Node& start, const Node& target, const unsigned char* pMap, NodeMap& came_from, CostMap& current_cost)
+{
+	PriorityQueue<Node> frontier;
+	frontier.put(start, 0);
+
+	came_from[start] = start;
+	current_cost[start] = 0;
+
+	while (!frontier.empty())
+	{
+		auto current = frontier.get();
+
+		if (current == target)
+		{
+			break;
+		}
+
+		for (auto& next : graph.neighbours(current.m_x, current.m_y, pMap))
+		{
+			int new_cost = current_cost[current] + 1;
+
+			if (!current_cost.count(next) || new_cost < current_cost[next])
+			{
+				current_cost[next] = new_cost;
+				came_from[next] = current;
+				frontier.put(next, new_cost);
+				int priority = new_cost + heuristic(next, target);
+			}
+		}
+	}
+}
+
+std::vector<int> reconstruct_path(const Node& start, const Node& target, NodeMap& came_from, const int mapWidth, int* pOutBuffer, int nOutBufferSize)
+{
+	std::vector<int> return_path;
+	Node current = target;
+	return_path.push_back((current.m_x + (current.m_y * mapWidth)));
+
+	while (current != start)
+	{
+		current = came_from[current];
+		if (Node{ -1, -1 } == came_from[current] || static_cast<int>(return_path.size()) > nOutBufferSize)
+		{
+			return {};
+		}
+
+		return_path.push_back((current.m_x + (current.m_y * mapWidth)));
+	}
+
+	//Get rid of the last entry -> it's the start
+	return_path.pop_back();
+	std::reverse(return_path.begin(), return_path.end());
+	for (auto& x : return_path)
+	{
+		*pOutBuffer = x;
+		++pOutBuffer;
+	}
+	return return_path;
+}
 
 int main()
 {
@@ -177,22 +316,19 @@ int FindPath(const int nStartX, const int nStartY,
 	int* pOutBuffer, const int nOutBufferSize)
 {
 	Graph grid_graph{ nMapWidth, nMapHeight };
-	auto res = grid_graph.BFS(nStartX, nStartY, nTargetX, nTargetY, pMap, pOutBuffer);
+	//auto res = grid_graph.BFS(nStartX, nStartY, nTargetX, nTargetY, pMap, pOutBuffer);
 
-	//case 1
-	auto test_1 = grid_graph.neighbours(1, 1, pMap); // should be 1,0 and 1,2
-	auto test_2 = grid_graph.neighbours(0, 0, pMap); // should be 1,0
-	auto test_3 = grid_graph.neighbours(3, 2, pMap); // should be 2,2 and 3,1
+	Node start = { nStartX, nStartY };
+	Node target = { nTargetX, nTargetY };
 
-	//Case 2
-	auto test_4 = grid_graph.neighbours(1, 1, pMap); // should be 2,0 and 2,1
-	auto test_5 = grid_graph.neighbours(0, 0, pMap); // should be nothing
-	auto test_6 = grid_graph.neighbours(2, 2, pMap); // should be 2,1
-	auto test_7 = grid_graph.neighbours(0, 2, pMap); // should be nothing
-	auto test_8 = grid_graph.neighbours(2, 0, pMap); // should be 2,1
+	NodeMap came_from;
+	CostMap current_cost;
 
+	//Store the pMap pointer inside the graph instead?
+	dijkstra(grid_graph, start, target, pMap, came_from, current_cost);
+	auto res = reconstruct_path(start, target, came_from, nMapWidth, pOutBuffer, nOutBufferSize);
 
-	//Keep within the bounds by using % when iterating
-
-	return res;
+	return res.size() == 0 ? -1 : res.size();
 }
+
+//Need to prevent further searching if it's passed a certain threshold
