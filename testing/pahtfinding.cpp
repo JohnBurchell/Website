@@ -3,6 +3,7 @@
 #include <tuple>
 #include <queue>
 #include <unordered_map>
+#include <map>
 #include <string>
 #include <functional>
 #include <iostream>
@@ -11,7 +12,155 @@
 //The running of the search.
 
 
-//uh oh..
+namespace Honey
+{
+	using std::cin;
+	using std::cout;
+
+	void honeycomb_walk()
+	{
+		long long all_steps[16][31][31]{ 0 };
+		all_steps[0][15][15] = 1;
+
+		//Instead of calculating everything on the fly per request, do upfront computation and
+		//cache the reults -> We know we'll only ever need to check <= 14
+		for (int i = 1; i < 16; ++i) {
+			for (int j = 1; j < 31; ++j) {
+				for (int k = 1; k < 31; ++k)
+				{
+					//Calculate the total step count of each step 
+					all_steps[i][j][k] =
+						all_steps[i - 1][j][k + 1] +
+						all_steps[i - 1][j + 1][k] +
+						all_steps[i - 1][j][k - 1] +
+						all_steps[i - 1][j - 1][k] +
+						all_steps[i - 1][j + 1][k + 1] +
+						all_steps[i - 1][j - 1][k - 1];
+				}
+			}
+		}
+
+
+		auto test_one = all_steps[2][15][15];
+		auto test_two = all_steps[3][15][15];
+		auto test_three = all_steps[4][15][15];
+		auto test_four = all_steps[5][15][15];
+		auto test_five = all_steps[6][15][15];
+		auto test_six = all_steps[7][15][15];
+		auto test_seven = all_steps[8][15][15];
+
+		int count = 0;
+		int target = 0;
+		cin >> count;
+		std::vector<int> counts{};
+
+		while (count != 0)
+		{
+			cin >> target;
+			counts.push_back(target);
+			--count;
+		}
+
+		for(int x : counts)
+		{
+			std::cout << all_steps[x][15][15] << "\n";
+		}
+	}
+}
+
+namespace Pizza
+{
+	int manhattan(const int x1, const int y1, const int x2, const int y2)
+	{
+		return abs(x1 - x2) + abs(y1 - y2);
+	}
+
+	int pizza_test(const int x, const int y, int** map, const int rowCount, const int colCount)
+	{
+		//Store the weights etc here?
+		std::map<std::pair<std::pair<int, int>, std::pair<int, int>>, int> calcs;
+
+
+		int total_count = 0;
+
+		for (int i = 0; i < colCount; ++i)
+		{
+			for (int j = 0; j < rowCount; ++j)
+			{
+				std::pair<std::pair<int, int>, std::pair<int, int>> pair{ { x, y },{ j, i } };
+				calcs[pair] = manhattan(x, y, j, i) * map[j][i];
+			}
+		}
+
+		int count = 0;
+
+		for (auto& x : calcs)
+		{
+			count += x.second;
+		}
+
+		return count;
+	}
+
+	void pizza()
+	{
+		//Read in total test cases
+		int** map;
+		int cases = 0;
+		std::cin >> cases;
+
+		std::vector<int> results;
+
+		while (cases != 0)
+		{
+			int rowCount = 0;
+			int colCount = 0;
+
+			std::cin >> colCount;
+			std::cin >> rowCount;
+
+			//Init array
+			map = new int *[rowCount];
+			for (int i = 0; i < rowCount; ++i)
+			{
+				map[i] = new int[colCount];
+			}
+
+			for (int i = 0; i < rowCount; ++i)
+			{
+				for (int j = 0; j < colCount; ++j)
+				{
+					std::cin >> map[i][j];
+				}
+			}
+
+			int min = std::numeric_limits<int>::max();
+
+			for (int i = 0; i < rowCount; ++i)
+			{
+				for (int j = 0; j < colCount; ++j)
+				{
+					auto res = pizza_test(j, i, map, rowCount, colCount);
+					if (res < min)
+					{
+						min = res;
+					}
+				}
+			}
+
+			results.push_back(min);
+
+			//Create 2d array of the values -> Simply find the smallest?
+			//Same can be done with a simple vector / array
+			--cases;
+		}
+
+		for (auto& x : results)
+		{
+			std::cout << x << " blocks\n";
+		}
+	}
+}
 
 
 namespace
@@ -49,7 +198,12 @@ namespace
 		}
 	};
 
-	int heuristic(const Node& a, const Node& b)
+	int manhattan_heuristic(const int x1, const int y1, const int x2, const int y2)
+	{
+		return abs(x1 - x2) + abs(y1 - y2);
+	}
+
+	int manhattan_heuristic(const Node& a, const Node& b)
 	{
 		//Using Manhattan distance for now
 		return 1 * abs(a.m_x - b.m_x) + abs(a.m_y - b.m_y);
@@ -458,7 +612,7 @@ int main()
 	};
 
 	int pOutBuffer4[10000];
-	auto res4 = FindPath(0, 0, 99, 99, massive_array, 100, 100, pOutBuffer4, 10000);
+	//auto res4 = FindPath(0, 0, 99, 99, massive_array, 100, 100, pOutBuffer4, 10000);
 
 	unsigned char massive_array_two[] =
 	{
@@ -566,11 +720,14 @@ int main()
 	};
 
 	int pOutBuffer5[10000];
-	auto res5 = FindPath(0, 0, 99, 99, massive_array_two, 100, 100, pOutBuffer5, 10000);
+	//auto res5 = FindPath(0, 0, 99, 99, massive_array_two, 100, 100, pOutBuffer5, 10000);
 
 	unsigned char pMap6[] = { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1 };
 	int pOutBuffer6[12];
-	auto res6 = FindPath(0, 0, 1, 2, pMap6, 4, 3, pOutBuffer6, 12);
+	//auto res6 = FindPath(0, 0, 1, 2, pMap6, 4, 3, pOutBuffer6, 12);
+
+	Honey::honeycomb_walk();
+	Pizza::pizza();
 
 	return 0;
 }
