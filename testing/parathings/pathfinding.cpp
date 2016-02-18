@@ -9,6 +9,8 @@
 #include <iostream>
 
 #include "honey.h"
+#include "pizza.h"
+#include "JPS.h"
 
 /*
 
@@ -292,13 +294,23 @@ int main()
 		1,0,0,0,1,1,1,1,1,1
 	};
 	int pOutBuffer3[20];
-	auto res3 = FindPath(0, 0, 9, 4, pMap3, 10, 5, pOutBuffer3, 20);
+	//auto res3 = FindPath(0, 0, 9, 4, pMap3, 10, 5, pOutBuffer3, 20);
 
 	unsigned char pMap6[] = { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1 };
 	int pOutBuffer6[12];
 	auto res6 = FindPath(0, 0, 1, 2, pMap6, 4, 3, pOutBuffer6, 12);
 
-	Honey::honeycomb_walk();
+	//Honey::honeycomb_walk();
+
+	unsigned char pMap7[] = {
+		1, 1, 1, 1,
+		1, 1, 0, 1,
+		1, 1, 0, 1
+	};
+	int pOutBuffer7[12];
+
+	auto res7 = JPS::FindPath(0, 0, 3, 2, pMap7, 4, 3, pOutBuffer7, 12);
+	auto res8 = JPS::FindPath(0, 0, 9, 4, pMap3, 10, 5, pOutBuffer3, 20);
 
 
 	return 0;
