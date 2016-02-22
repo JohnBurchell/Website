@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <functional>
+#include <algorithm>
 #include <iostream>
 
 //Pre-allocate whole block for the pathfinder at the start -> based on amount of nodes? + a bit extra? Prevents allocations during
@@ -14,7 +15,6 @@
 
 namespace JPS
 {
-
 	struct Node
 	{
 		Node() : m_x(-1), m_y(-1) {}
@@ -61,11 +61,11 @@ namespace JPS
 
 	double octile_heuristic(const Node& a, const Node& b)
 	{
-		auto D = 1;
-		auto D2 = sqrt(2);
+		//auto D = 1;
+		//auto D2 = sqrt(2);
 
-		auto dx = abs(a.m_x - b.m_x);
-		auto dy = abs(a.m_y - b.m_y);
+		auto dx = std::abs(a.m_x - b.m_x);
+		auto dy = std::abs(a.m_y - b.m_y);
 
 		return std::max(dx, dy) + 0.41 * std::min(dx, dy); //Courtesy of GameAIPro (Rabin)
 														   //return D * (dx + dy) + (D2 - 2 * D) * std::min(dx, dy);
@@ -89,8 +89,7 @@ namespace JPS
 			neighbour_positions_4 = { Node{ 0, -1 }, Node{ 1, 0 }, Node{ 0, 1 }, Node{ -1, 0 } };
 
 			//N //NE //E //SE //S //SW //W //NW
-			neighbour_positions_8 = { Node{ 0, -1 }, Node{ 1, 1 },  Node{ 1, 0 }, Node{ 1, -1 }, Node{ 0, 1 }, Node{ -1, -1 }, Node{ -1, 0 }, Node{ -1, 1 } };
-
+			neighbour_positions_8 = { Node{ 0, -1 }, Node{ 1, -1 },  Node{ 1, 0 }, Node{ 1, 1 }, Node{ 0, 1 }, Node{ -1, 1 }, Node{ -1, 0 }, Node{ -1, -1 } };
 		}
 
 		int get_index_value(const int x, const int y) const
@@ -173,58 +172,6 @@ namespace JPS
 
 			return return_vector;
 		}
-
-		//BFS
-		int BFS(const Node& start, const Node& target, int* pOutBuffer)
-		{
-			auto frontier = std::queue<Node>();
-			bool target_found = false;
-			frontier.push(start);
-
-			node_paths[start] = start;
-
-			Node current = start;
-
-			while (!frontier.empty())
-			{
-				current = frontier.front();
-				frontier.pop();
-
-				auto nn = neighbours(current.m_x, current.m_y);
-
-				if (current == target)
-				{
-					target_found = true;
-					break;
-				}
-
-				for (auto& next : neighbours(current.m_x, current.m_y))
-				{
-					if (!node_paths.count(next))
-					{
-						frontier.push(next);
-						node_paths[next] = current;
-					}
-				}
-			}
-
-			std::vector<int> indecies{};
-
-			while (current != start)
-			{
-				indecies.push_back(get_index_value(current.m_x, current.m_y));
-				current = node_paths[current];
-			}
-
-			for (int i = indecies.size() - 1; i != -1; --i)
-			{
-				*pOutBuffer = indecies[i];
-				++pOutBuffer;
-			}
-
-			return target_found ? indecies.size() : -1;
-		}
-
 
 	private:
 		int m_width;
@@ -324,8 +271,8 @@ namespace JPS
 				{
 					current_cost[next] = new_cost;
 					came_from[next] = current;
-					frontier.put(next, new_cost);
 					double priority = new_cost + octile_heuristic(next, target);
+					frontier.put(next, priority);
 				}
 			}
 		}
@@ -485,60 +432,28 @@ namespace JPS
 			}
 		}
 
-
-		//Now check the neighbours to see if any of them are forced i.e
-		//
-		// x-?-?
-		// x-C-?
-		// P-x-x
-		//
-		// P = Parent
-		// C = curent
-		// ? = Possible next node if this is not a jump point
 		//Search along x-axis
-		if (dx != 0)
+		else
 		{
-			// x-!-!      !-!-x
-			// P-C-?  OR  ?-C-P
-			// x-!-!      !-!-x
-			//Exclamation marks are checked
-
-			auto t1 = graph.reachable(Node{ current.m_x, current.m_y - 1 });
-			auto t2 = !graph.reachable(Node{ current.m_x - dx, current.m_y - 1 });
-			auto t3 = graph.reachable(Node{ current.m_x, current.m_y + 1 });
-			auto t4 = !graph.reachable(Node{ current.m_x - dx, current.m_y + 1 });
-
-			if ((graph.reachable(Node{ current.m_x, current.m_y - 1 }) && (!graph.reachable(Node{ current.m_x - dx, current.m_y - 1 }))) ||
-				(graph.reachable(Node{ current.m_x, current.m_y + 1 }) && (!graph.reachable(Node{ current.m_x - dx, current.m_y + 1 }))))
+			if (dx != 0)
 			{
-				//This node is a jump node, return here
-				return current;
-			}
-		}
-
-		//Search along y axis
-		else if (dy != 0)
-		{
-			// !-?-!	  x-P-x
-			// !-C-!  OR  !-C-!
-			// x-P-x      !-?-! 
-			//Exclamation marks are checked
-			auto t1 = graph.reachable(Node{ current.m_x - 1, current.m_y });
-			auto t2 = !graph.reachable(Node{ current.m_x - 1, current.m_y - dy });
-			auto t3 = graph.reachable(Node{ current.m_x + 1, current.m_y });
-			auto t4 = !graph.reachable(Node{ current.m_x + 1, current.m_y - dy });
-
-			if ((graph.reachable(Node{ current.m_x - 1, current.m_y }) && (!graph.reachable(Node{ current.m_x - 1, current.m_y - dy }))) ||
-				(graph.reachable(Node{ current.m_x + 1, current.m_y }) && (!graph.reachable(Node{ current.m_x + 1, current.m_y - dy }))))
-			{
-				//This node is a jump node, return here
-				return current;
+				if ((graph.reachable(Node{ current.m_x + dx, current.m_y + 1 }) && (!graph.reachable(Node{ current.m_x, current.m_y + 1 }))) ||
+					(graph.reachable(Node{ current.m_x + dx, current.m_y - 1 }) && (!graph.reachable(Node{ current.m_x, current.m_y - 1 }))))
+				{
+					//This node is a jump node, return here
+					return current;
+				}
 			}
 
-			//Do an extra horizontal check
-			if (graph.valid_node(jump(Node{ current.m_x + 1, current.m_y }, current, target, graph)) || graph.valid_node(jump(Node{ current.m_x - 1, current.m_y }, current, target, graph)))
+			//Search along y axis
+			else if (dy != 0)
 			{
-				return current;
+				if ((graph.reachable(Node{ current.m_x + 1, current.m_y + dy }) && (!graph.reachable(Node{ current.m_x + 1, current.m_y }))) ||
+					(graph.reachable(Node{ current.m_x - 1, current.m_y + dy }) && (!graph.reachable(Node{ current.m_x - 1, current.m_y }))))
+				{
+					//This node is a jump node, return here
+					return current;
+				}
 			}
 		}
 
@@ -552,15 +467,21 @@ namespace JPS
 		//Check if the current node has a parent, if it is the first node
 		if (graph.valid_node(parent) && node != parent)
 		{
-			int dx = (node.m_x - parent.m_x);
-			int dy = (node.m_y - parent.m_y);
+			int dx = (node.m_x - parent.m_x) / std::max(std::abs(node.m_x - parent.m_x), 1);
+			int dy = (node.m_y - parent.m_y) / std::max(std::abs(node.m_y - parent.m_y), 1);
 
-			if (dx != 0)
+			if (dx != 0 && dy != 0)
 			{
-				Node n1{ node.m_x, node.m_y - 1 };
-				Node n2{ node.m_x, node.m_y + 1 };
-				Node n3{ node.m_x + dx, node.m_y };
+				Node n{ node.m_x, node.m_y + dy };
+				Node n1{ node.m_x + dx, node.m_y };
+				Node n2{ node.m_x + dx, node.m_y + dy };
+				Node n3{ node.m_x - dx, node.m_y };
+				Node n4{ node.m_x, node.m_y - dy };
 
+				if (graph.reachable(n))
+				{
+					neighbours.push_back(n);
+				}
 				if (graph.reachable(n1))
 				{
 					neighbours.push_back(n1);
@@ -571,26 +492,48 @@ namespace JPS
 				}
 				if (graph.reachable(n3))
 				{
-					neighbours.push_back(n3);
+					neighbours.push_back(Node{ node.m_x - dx, node.m_y + dy });
+				}
+				if (graph.reachable(n4))
+				{
+					neighbours.push_back(Node{ node.m_x + dx, node.m_y - dy });
 				}
 			}
-			else if (dy != 0)
+			else
 			{
-				Node n1{ node.m_x - 1, node.m_y };
-				Node n2{ node.m_x + 1, node.m_y };
-				Node n3{ node.m_x, node.m_y + dy };
-
-				if (graph.reachable(n1))
+				if (dx == 0)
 				{
-					neighbours.push_back(n1);
+					Node n1{ node.m_x, node.m_y + dy};
+					
+					if (graph.reachable(n1))
+					{
+						neighbours.push_back(n1);
+					}
+					if (graph.reachable(Node{ node.m_x + 1, node.m_y }))
+					{
+						neighbours.push_back(Node{ node.m_x + 1, node.m_y + dy });
+					}
+					if (graph.reachable(Node{ node.m_x - 1, node.m_y }))
+					{
+						neighbours.push_back(Node{ node.m_x - 1, node.m_y + dy });
+					}
 				}
-				if (graph.reachable(n2))
+				else
 				{
-					neighbours.push_back(n2);
-				}
-				if (graph.reachable(n3))
-				{
-					neighbours.push_back(n3);
+					Node n1{ node.m_x + dx, node.m_y };
+					
+					if (graph.reachable(n1))
+					{
+						neighbours.push_back(n1);
+					}
+					if (graph.reachable(Node{ node.m_x, node.m_y + 1 }))
+					{
+						neighbours.push_back(Node{ node.m_x + dx, node.m_y + 1 });
+					}
+					if (graph.reachable(Node { node.m_x, node.m_y - 1 }))
+					{
+						neighbours.push_back(Node{ node.m_x + dx, node.m_y - 1 });
+					}
 				}
 			}
 		}//if(parent)
@@ -607,9 +550,6 @@ namespace JPS
 	{
 		std::vector<Node> successors{};
 		std::vector<Node> neighbours = prune_neighbours(current, parent, graph);
-
-		std::vector<Node> neighbours1 = prune_neighbours({ 3, 1 }, { 3, 0 }, graph);
-		std::vector<Node> neighbours2 = prune_neighbours({ 2, 0 }, { 1, 0 }, graph);
 
 		for (auto& neighbour : neighbours)
 		{
@@ -651,8 +591,8 @@ namespace JPS
 
 				current_cost[x] = new_cost;
 				came_from[x] = current;
-				frontier.put(x, new_cost);
 				double priority = new_cost + octile_heuristic(x, target);
+				frontier.put(x, priority);
 			}
 
 			auto test = true;
