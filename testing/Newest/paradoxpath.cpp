@@ -1,16 +1,25 @@
 //#include <vector>
-//#include <tuple>
 //#include <queue>
 //#include <unordered_map>
-//#include <map>
-//#include <string>
 //#include <functional>
 //#include <algorithm>
-//#include <iostream>
 //
 ////Idea
 ////Make the graph static to prevent multiple calls -> Not so well versed in multi-threaded environments so I think this might be why it's timing out
 ////If this is not why - then I don't know, the map being passed to it must be huuuuuuuuuuuuuuuuuuuuge!
+//
+////Need to limit the recursion
+////Idea:
+///*
+//Have two counters? One for recursion depth the other for the current depth of the given neighbour node
+//Have it being static and reset it each time the graph is cleared etc
+//
+//Above was not needed -> Simply using the x/y co-ords of the nodes gives me the current count of visited nodes, if ever the amount is greater than the buffer
+//amount then the path cannot be any shorter than it currently is (along this particular recursive search/peek)
+//
+//If it still exceeds the memory limit (Which I think is a stackoverflow as my system SO'd at roughly the same time frame) then I'll have to consider something else for the recursive steps
+//Perhaps something iterative instead?
+//*/
 //
 //struct Node
 //{
@@ -73,7 +82,6 @@
 //													   //return D * (dx + dy) + (D2 - 2 * D) * std::min(dx, dy);
 //}
 //
-//typedef std::unordered_map<Node, Node, NodeHasher> NodeMap;
 //typedef std::unordered_map<Node, double, NodeHasher> CostMap;
 //typedef std::pair<Node, double> Node_Pair;
 //typedef std::vector<Node> Neighbour_Vector;
@@ -103,7 +111,6 @@
 //
 //		//Pre-allocate the buckets in the map -> Don't need to do this now as it's not really needed? At least it's not for the m_came_from
 //		//Arbritrary number..for now
-//		m_came_from.reserve(10);
 //		m_current_cost.reserve(10);
 //
 //		//Reserve space for four possible neighbours
@@ -115,7 +122,6 @@
 //		m_successors.reserve(10);
 //
 //		//Reserve the vector to hold nodes once they have been discovered
-//		m_map_rep.reserve(m_pmap_size);
 //		m_map_rep = std::vector<Node>(m_pmap_size, Node{ -1, -1 });
 //	}
 //
@@ -141,9 +147,7 @@
 //		m_height = 0;
 //		m_pmap_size = 0;
 //		//Erase the maps and reserve them back down to 0 for good measure
-//		m_came_from.erase(m_came_from.begin(), m_came_from.end());
 //		m_current_cost.erase(m_current_cost.begin(), m_current_cost.end());
-//		m_came_from.reserve(0);
 //		m_current_cost.reserve(0);
 //	}
 //
@@ -223,7 +227,6 @@
 //
 //public:
 //	std::priority_queue<Node_Pair, std::vector<Node_Pair>, std::greater<Node_Pair>> m_frontier;
-//	NodeMap m_came_from;
 //	CostMap m_current_cost;
 //	Neighbour_Vector m_neighbour_vector;
 //	Neighbour_Vector m_prune_neighbours;
@@ -238,9 +241,9 @@
 //
 //	//Testing
 //	bool in_use;
-//
 //};
-//std::vector<int> reconstruct_path(const Node& start, const Node& target, NodeMap& came_from, const int mapWidth, int* pOutBuffer, int nOutBufferSize, const std::vector<Node>& pmap_vec)
+//
+//std::vector<int> reconstruct_path(const Node& start, const Node& target, const int mapWidth, int* pOutBuffer, const std::vector<Node>& pmap_vec)
 //{
 //
 //	if (target.m_x == -1 && target.m_y == -1)
@@ -285,7 +288,7 @@
 //}
 //
 //
-//Node a_star_jps(Graph& graph, const Node& start, const Node& target, const unsigned char* pMap);
+//Node a_star_jps(Graph& graph, const Node& start, const Node& target, const int maximum_recursion_depth);
 //
 //
 //int FindPath(const int nStartX, const int nStartY,
@@ -296,15 +299,13 @@
 //	Node start = { nStartX, nStartY };
 //	Node target = { nTargetX, nTargetY };
 //
-//	Graph::get_instance();
-//
 //	if (!Graph::get_instance().in_use)
 //	{
 //		Graph::get_instance().init_graph(nMapWidth, nMapHeight, pMap);
 //		Graph::get_instance().in_use = true;
 //
-//		auto target_found = a_star_jps(Graph::get_instance(), start, target, pMap);
-//		auto res = reconstruct_path(start, target_found, Graph::get_instance().m_came_from, nMapWidth, pOutBuffer, nOutBufferSize, Graph::get_instance().m_map_rep);
+//		auto target_found = a_star_jps(Graph::get_instance(), start, target, nOutBufferSize);
+//		auto res = reconstruct_path(start, target_found, nMapWidth, pOutBuffer, Graph::get_instance().m_map_rep);
 //
 //		//Not using it anymore and clear the graph of stuff
 //		Graph::get_instance().in_use = false;
@@ -316,7 +317,7 @@
 //	return -1;
 //}
 //
-//Node jump(const Node& current, const Node& parent, const Node& target, Graph& graph)
+//Node jump(const Node& current, const Node& parent, const Node& target, Graph& graph, const int maximum_recursion_depth)
 //{
 //	//Get the direction of the incomming node by removing the parent from it
 //	int dx = current.m_x - parent.m_x;
@@ -329,11 +330,17 @@
 //		return graph.m_bad_node;
 //	}
 //
+//	if (current.m_x + current.m_y > maximum_recursion_depth)
+//	{
+//		//The current path taken exceeds the maxmium depth.
+//		//Stop recursing here and act as if the node just checked was inacessable
+//		return Node{ -1, -1 };
+//	}
+//
 //	graph.add_to_vec(current, parent);
 //	//If the current node is the target, return the target node
 //	if (current == target)
 //	{
-//		graph.m_came_from[target] = parent;
 //		return Node{ target.m_x, target.m_y, parent.m_x, parent.m_y };
 //	}
 //
@@ -360,8 +367,8 @@
 //
 //		//Make an extra check when moving vertically for horizontal jump points
 //		//Refactor to just take ints?
-//		auto right = jump(Node{ current.m_x + 1, current.m_y }, current, target, graph);
-//		auto left = jump(Node{ current.m_x - 1, current.m_y }, current, target, graph);
+//		auto right = jump(Node{ current.m_x + 1, current.m_y }, current, target, graph, maximum_recursion_depth);
+//		auto left = jump(Node{ current.m_x - 1, current.m_y }, current, target, graph, maximum_recursion_depth);
 //		if (graph.valid_node(right.m_x, right.m_y) || graph.valid_node(left.m_x, left.m_y))
 //		{
 //			return Node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
@@ -375,7 +382,7 @@
 //	}
 //
 //	//Recurse diagonally
-//	return jump(Node{ current.m_x + dx, current.m_y + dy }, current, target, graph);
+//	return jump(Node{ current.m_x + dx, current.m_y + dy }, current, target, graph, maximum_recursion_depth);
 //}
 //void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 //{
@@ -434,39 +441,28 @@
 //	}
 //}
 //
-//void identify_successors(const Node& current, const Node& parent, const Node& target, Graph& graph)
+//void identify_successors(const Node& current, const Node& parent, const Node& target, Graph& graph, const int maximum_recursion_depth)
 //{
-//	prune_neighbours(current, graph.m_came_from[parent], graph);
+//	prune_neighbours(current, parent, graph);
 //	graph.m_successors.clear();
 //
 //	for (auto& neighbour : graph.m_prune_neighbours)
 //	{
-//		Node jump_node = jump(neighbour, current, target, graph);
+//		Node jump_node = jump(neighbour, current, target, graph, maximum_recursion_depth);
 //
-//		//If the node is valid, add to successors
+//		//If the node is valid, add to successors and to the vector of visited nodes
 //		if (graph.valid_node(jump_node.m_x, jump_node.m_y))
 //		{
 //			graph.m_successors.push_back(jump_node);
-//		}
-//
-//		if (!graph.m_came_from.count(neighbour))
-//		{
-//			graph.m_came_from[neighbour] = current;
-//
-//			if (graph.valid_node(neighbour.m_x, neighbour.m_y))
-//			{
-//				graph.add_to_vec(neighbour, parent);
-//			}
+//			graph.add_to_vec(neighbour, parent);
 //		}
 //	}
 //}
 //
 ////A* Search with JPS (Jump point search)
-//Node a_star_jps(Graph& graph, const Node& start, const Node& target, const unsigned char* pMap)
+//Node a_star_jps(Graph& graph, const Node& start, const Node& target, const int maximum_recursion_depth)
 //{
 //	graph.m_frontier.emplace(start, 0);
-//
-//	graph.m_came_from[start] = start;
 //
 //	//Start is index 0 
 //	graph.m_map_rep[0] = start;
@@ -484,7 +480,7 @@
 //		}
 //
 //		//Update successors
-//		identify_successors(current, graph.m_came_from[current], target, graph);
+//		identify_successors(current, Node{ current.m_px, current.m_py }, target, graph, maximum_recursion_depth);
 //
 //		for (auto& x : graph.m_successors)
 //		{
@@ -492,7 +488,6 @@
 //			double new_cost = graph.m_current_cost[current] + 1;
 //			if (!graph.m_current_cost.count(x) || new_cost < graph.m_current_cost[x])
 //			{
-//				//Don't need to add to the "came_from" path here, that's done in the jump / by the neighbours
 //				double priority = new_cost + manhattan_heuristic(x, target);
 //				graph.m_current_cost[x] = new_cost;
 //				graph.m_frontier.emplace(x, priority);
@@ -500,5 +495,6 @@
 //		}
 //	}
 //
+//	//No target found
 //	return Node{ -1, -1 };
 //}

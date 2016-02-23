@@ -1,10 +1,3 @@
-#include <vector>
-#include <tuple>
-#include <queue>
-#include <unordered_map>
-#include <map>
-#include <string>
-#include <functional>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -70,8 +63,6 @@ void load_map(const char* name, unsigned char* pMap)
 
 	while (std::getline(map_file, line))
 	{
-		auto test = true;
-
 		for (unsigned char x : line)
 		{
 			*p_pmap = '\x1';
@@ -131,7 +122,7 @@ int main()
 	load_map("500_500.txt", huge_map);
 	int pOutBuffer4[1000];
 
-	auto res4 = FindPath(0, 0, 499, 499, huge_map, 500, 500, pOutBuffer4, 1000);
+	auto res4 = FindPath(0, 0, 499, 499, huge_map, 500, 500, pOutBuffer4, 20000);
 
 	auto res6 = FindPath(0, 0, 1, 2, pMap5, 4, 3, pOutBuffer5, 12);
 	auto res7 = FindPath(0, 0, 3, 2, pMap7, 4, 3, pOutBuffer7, 12);
