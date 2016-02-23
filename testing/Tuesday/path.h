@@ -327,6 +327,12 @@ Node jump_north(const Node& node, const Node& parent, const Node& target, Graph&
 	auto current = Node{ node.m_x, node.m_y, parent.m_x, parent.m_y };
 	while (true)
 	{
+		if (!graph.reachable(current.m_x, current.m_y))
+		{
+			//Not reachable
+			return graph.m_bad_node;
+		}
+
 		if (current.m_x == target.m_x && current.m_y == target.m_y)
 		{
 			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
@@ -338,13 +344,15 @@ Node jump_north(const Node& node, const Node& parent, const Node& target, Graph&
 		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
 			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
 		{
-			//This is an obstacle -> We've hit a dead end
-			if (!graph.reachable(current.m_x, current.m_y - 1))
-			{
-				return graph.m_bad_node;
-			}
+			return current;
+		}
 
-			//Not a dead end, it's a forced neighbour
+		auto east = jump_east(Node{ current.m_x, current.m_y }, Node{ current.m_x, current.m_y }, target, graph);
+		auto west = jump_west(Node{ current.m_x, current.m_y }, Node{ current.m_x, current.m_y }, target, graph);
+
+		if (graph.reachable(east.m_x, east.m_y) || graph.reachable(west.m_x, west.m_y))
+		{
+			//Then a jump node was found, return it
 			return current;
 		}
 
@@ -360,6 +368,13 @@ Node jump_east(const Node& node, const Node& parent, const Node& target, Graph& 
 
 	while (true)
 	{
+
+		if (!graph.reachable(current.m_x, current.m_y))
+		{
+			//Not reachable
+			return graph.m_bad_node;
+		}
+
 		if (current.m_x == target.m_x && current.m_y == target.m_y)
 		{
 			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
@@ -368,16 +383,9 @@ Node jump_east(const Node& node, const Node& parent, const Node& target, Graph& 
 		//Add to the vec of visited nodes
 		graph.add_to_vec(current, Node{ current.m_px, current.m_py });
 
-		if ((graph.reachable(current.m_x, current.m_y + 1) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
-			(graph.reachable(current.m_x, current.m_y - 1) && (!graph.reachable(current.m_x + 1, current.m_y - 1))))
+		if ((graph.reachable(current.m_x, current.m_y + 1) && (!graph.reachable(current.m_x - 1, current.m_y + 1))) ||
+			(graph.reachable(current.m_x, current.m_y - 1) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
 		{
-			//This is an obstacle -> We've hit a dead end
-			if (!graph.reachable(current.m_x + 1, current.m_y))
-			{
-				return graph.m_bad_node;
-			}
-
-			//Not a dead end, it's a forced neighbour
 			return current;
 		}
 
@@ -394,6 +402,12 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 	while (true)
 	{
 
+		if (!graph.reachable(current.m_x, current.m_y))
+		{
+			//Not reachable
+			return graph.m_bad_node;
+		}
+
 		if (current.m_x == target.m_x && current.m_y == target.m_y)
 		{
 			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
@@ -405,13 +419,6 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
 			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y + 1))))
 		{
-			//This is an obstacle -> We've hit a dead end
-			if (!graph.reachable(current.m_x, current.m_y + 1))
-			{
-				return graph.m_bad_node;
-			}
-
-			//Not a dead end, it's a forced neighbour
 			return current;
 		}
 
@@ -423,10 +430,9 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 			//Then a jump node was found, return it
 			return current;
 		}
-		else
-		{
-			return graph.m_bad_node;
-		}
+
+		current = Node{ current.m_x, current.m_y + 1, current.m_x, current.m_y };
+	
 	}
 
 	return graph.m_bad_node;
@@ -439,6 +445,12 @@ Node jump_west(const Node& node, const Node& parent, const Node& target, Graph& 
 	while (true)
 	{
 
+		if (!graph.reachable(current.m_x, current.m_y))
+		{
+			//Not reachable
+			return graph.m_bad_node;
+		}
+
 		if (current.m_x == target.m_x && current.m_y == target.m_y)
 		{
 			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
@@ -449,13 +461,6 @@ Node jump_west(const Node& node, const Node& parent, const Node& target, Graph& 
 		if ((graph.reachable(current.m_x, current.m_y + 1) && (!graph.reachable(current.m_x - 1, current.m_y + 1))) ||
 			(graph.reachable(current.m_x, current.m_y - 1) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
 		{
-			//This is an obstacle -> We've hit a dead end
-			if (!graph.reachable(current.m_x - 1, current.m_y))
-			{
-				return graph.m_bad_node;
-			}
-
-			//Not a dead end, it's a forced neighbour
 			return current;
 		}
 
@@ -466,7 +471,7 @@ Node jump_west(const Node& node, const Node& parent, const Node& target, Graph& 
 	return graph.m_bad_node;
 }
 
-Node jump_test(const Node& current, const Node& parent, const Node& target, Graph& graph)
+Node jump(const Node& current, const Node& parent, const Node& target, Graph& graph, const int maximum_recursion_depth)
 {
 	//Get the direction of the incomming node by removing the parent from it
 	int dx = current.m_x - parent.m_x;
@@ -478,103 +483,40 @@ Node jump_test(const Node& current, const Node& parent, const Node& target, Grap
 		return graph.m_bad_node;
 	}
 
-	Node res{};
+	if (current.m_x + current.m_y > maximum_recursion_depth)
+	{
+		//Path is too long, don't let it continue searching
+		return graph.m_bad_node;
+	}
+
+	Node new_node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
+	Node new_parent{ parent.m_x, parent.m_y, parent.m_px, parent.m_py };
+
 	//North
 	if (dx == 0 && dy == -1)
 	{
-		res = jump_north(current, parent, target, graph);
+		new_node = jump_north(current, parent, target, graph);
 	}
 	//East
 	else if (dx == 1 && dy == 0)
 	{
-		res = jump_east(current, parent, target, graph);
+		new_node = jump_east(current, parent, target, graph);
 	}
 	//South
 	else if (dx == 0 && dy == 1)
 	{
-		res = jump_south(current, parent, target, graph);
+		new_node = jump_south(current, parent, target, graph);
 	}
 	//West
 	else if (dx == -1 && dy == 0)
 	{
-		res = jump_west(current, parent, target, graph);
-	}
-	else
-	{
-		auto test = true;
+		new_node = jump_west(current, parent, target, graph);
 	}
 
 	//A jump point or a null node has been found
-	return res;
+	return new_node;
 }
 
-Node jump(const Node& current, const Node& parent, const Node& target, Graph& graph, const int maximum_recursion_depth)
-{
-	//Get the direction of the incomming node by removing the parent from it
-	int dx = current.m_x - parent.m_x;
-	int dy = current.m_y - parent.m_y;
-
-	//If the current node is an obstacle or outside the grid
-	if (!graph.reachable(current.m_x, current.m_y))
-	{
-		//Return null (aka Node{-1, -1})
-		return graph.m_bad_node;
-	}
-
-	if (current.m_x + current.m_y > maximum_recursion_depth)
-	{
-		//The current path taken exceeds the maxmium depth.
-		//Stop recursing here and act as if the node just checked was inacessable
-		return Node{ -1, -1 };
-	}
-
-	graph.add_to_vec(current, parent);
-	//If the current node is the target, return the target node
-	if (current == target)
-	{
-		return Node{ target.m_x, target.m_y, parent.m_x, parent.m_y };
-	}
-
-	if (dx != 0)
-	{
-		if ((graph.reachable(current.m_x, current.m_y + 1) && (!graph.reachable(current.m_x - dx, current.m_y + 1))) ||
-			(graph.reachable(current.m_x, current.m_y - 1) && (!graph.reachable(current.m_x - dx, current.m_y - 1))))
-		{
-			//This node is a jump node, return here
-			return Node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
-		}
-	}
-
-	//Search along y axis
-	else if (dy != 0)
-	{
-		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - dy))) ||
-			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - dy))))
-		{
-			//This node is a jump node, return here
-			return Node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
-
-		}
-
-		//Make an extra check when moving vertically for horizontal jump points
-		//Refactor to just take ints?
-		auto right = jump(Node{ current.m_x + 1, current.m_y }, current, target, graph, maximum_recursion_depth);
-		auto left = jump(Node{ current.m_x - 1, current.m_y }, current, target, graph, maximum_recursion_depth);
-		if (graph.valid_node(right.m_x, right.m_y) || graph.valid_node(left.m_x, left.m_y))
-		{
-			return Node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
-		}
-	}
-
-	else
-	{
-		// Should never happen
-		return graph.m_bad_node;
-	}
-
-	//Recurse diagonally
-	return jump(Node{ current.m_x + dx, current.m_y + dy }, current, target, graph, maximum_recursion_depth);
-}
 void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 {
 	graph.m_prune_neighbours.clear();
@@ -640,7 +582,7 @@ void identify_successors(const Node& current, const Node& parent, const Node& ta
 	for (auto& neighbour : graph.m_prune_neighbours)
 	{
 		//Node jump_node = jump(neighbour, current, target, graph, maximum_recursion_depth);
-		Node jump_node = jump_test(neighbour, current, target, graph);
+		Node jump_node = jump(neighbour, current, target, graph, maximum_recursion_depth);
 
 		//If the node is valid, add to successors and to the vector of visited nodes
 		if (graph.valid_node(jump_node.m_x, jump_node.m_y))

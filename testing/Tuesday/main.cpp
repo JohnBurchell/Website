@@ -118,11 +118,21 @@ int main()
 
 	//};
 
-	unsigned char huge_map[750*750];
-	load_map("500_500.txt", huge_map);
-	int pOutBuffer4[1000];
+	//unsigned char huge_map_500[500*500];
+	//load_map("500_500.txt", huge_map_500);
+	//int pOutBuffer_500[2000];
 
-	auto res4 = FindPath(0, 0, 649, 649, huge_map, 750, 750, pOutBuffer4, 1000);
+	//unsigned char huge_map_750[750 * 750];
+	//load_map("750_750.txt", huge_map_750);
+	//int pOutBuffer_750[2000];
+
+	unsigned char huge_map_1000[1000 * 1000];
+	load_map("1000_1000.txt", huge_map_1000);
+	int pOutBuffer_1000[2000];
+
+	//auto res_500  = FindPath(0, 0, 499, 499, huge_map_500, 500, 500, pOutBuffer_500, 2000);
+	//auto res_750  = FindPath(0, 0, 749, 749, huge_map_750, 750, 750, pOutBuffer_750, 3000);
+	auto res_1000 = FindPath(0, 0, 999, 999, huge_map_1000, 1000, 1000, pOutBuffer_1000, 1000);
 
 	auto res6 = FindPath(0, 0, 1, 2, pMap5, 4, 3, pOutBuffer5, 12);
 	auto res7 = FindPath(0, 0, 3, 2, pMap7, 4, 3, pOutBuffer7, 12);
