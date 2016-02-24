@@ -1,23 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <random>
 
 #include "path.h"
-
-
-/*
-
-Simple A* implementation.
-
-Tried to get JPS working but failed, perhaps this will be sufficient to pass the tests!
-
-Ways to optimise:
-
-Pre-allocate whole block of memory to prevent further allocations
-Use an optimisation of A* (I've tried JPS but it's not that suitable for only 4 directions)
-RSR might work?
-
-*/
 
 void print_map(const unsigned char* pmap, const int width, const int height)
 {
@@ -126,18 +112,57 @@ int main()
 	//load_map("750_750.txt", huge_map_750);
 	//int pOutBuffer_750[2000];
 
-	unsigned char huge_map_1000[1000 * 1000];
-	load_map("1000_1000.txt", huge_map_1000);
-	int pOutBuffer_1000[2000];
+	//unsigned char huge_map_1000[1000 * 1000];
+	//load_map("1000_1000.txt", huge_map_1000);
+	//int pOutBuffer_1000[2000];
 
-	//auto res_500  = FindPath(0, 0, 499, 499, huge_map_500, 500, 500, pOutBuffer_500, 2000);
+	//auto res_500  = FindPath(10, 10, 24, 24, huge_map_500, 25, 25, pOutBuffer_500, 2000);
 	//auto res_750  = FindPath(0, 0, 749, 749, huge_map_750, 750, 750, pOutBuffer_750, 3000);
-	auto res_1000 = FindPath(0, 0, 999, 999, huge_map_1000, 1000, 1000, pOutBuffer_1000, 1000);
+	//auto res_1000 = FindPath(0, 0, 999, 999, huge_map_1000, 1000, 1000, pOutBuffer_1000, 2000);
 
 	auto res6 = FindPath(0, 0, 1, 2, pMap5, 4, 3, pOutBuffer5, 12);
 	auto res7 = FindPath(0, 0, 3, 2, pMap7, 4, 3, pOutBuffer7, 12);
 	auto res8 = FindPath(2, 0, 0, 2, pMap2, 3, 3, pOutBuffer2, 12);
 	auto res9 = FindPath(0, 0, 9, 4, pMap3, 10, 5, pOutBuffer3, 20);
+
+	constexpr int width = 500;
+	constexpr int height = 500;
+
+	auto size = width * height;
+
+	int pOutBuffer_X[10000];
+
+	unsigned char map_X[width * height];
+
+	std::fill_n(map_X, width* height, 0x01);
+
+
+	std::random_device rd;     // only used once to initialise (seed) engine
+	std::mt19937 rng(rd());    // random-number engine used (Mersenne-Twister in this case)
+	std::uniform_int_distribution<int> uni(0, height - 1); // guaranteed unbiased
+
+	auto rand_x = uni(rng);
+	auto rand_y = uni(rng);
+
+	auto res_x = FindPath(rand_x, rand_y, width - 1, height - 1, map_X, width, height, pOutBuffer_X, 10000);
+
+	for (int i = 0; i < 10; ++i)
+	{
+		rand_x = uni(rng);
+		rand_y = uni(rng);
+		res_x = FindPath(rand_x, rand_y, width - 1, height - 1, map_X, width, height, pOutBuffer_X, 10000);
+
+		std::cout << "Rand " << rand_x << " " << rand_y;
+
+		if (res_x != -1)
+		{
+			std::cout << " Found!" << std::endl;
+		}
+		else
+		{
+			std::cout << " No path!" << std::endl;
+		}
+	}
 
 	return 0;
 }
