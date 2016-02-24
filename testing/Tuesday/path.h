@@ -5,11 +5,11 @@
 #include <memory>
 
 /*
-	I really don't understand how this can be exceeding the memory limit of 1024 mb -> I think I had circular loops due to sloppy test
+I really don't understand how this can be exceeding the memory limit of 1024 mb -> I think I had circular loops due to sloppy test
 
-	running 10 searches on the same graph with different start locations is done in under 2~secs at 250,000 nodes.
+running 10 searches on the same graph with different start locations is done in under 2~secs at 250,000 nodes.
 
-	Got rid of the maps and now just have two vectors containing costs and another that has the closed / parents of the nodes that have been visited
+Got rid of the maps and now just have two vectors containing costs and another that has the closed / parents of the nodes that have been visited
 */
 struct Node
 {
@@ -180,7 +180,8 @@ public:
 	bool in_use;
 };
 
-std::vector<int> reconstruct_path(const Node& start, const Node& target, const int mapWidth, int* pOutBuffer, const std::vector<Node>& pmap_vec)
+std::vector<int> reconstruct_path(const Node& start, const Node& target, const int mapWidth,
+	int* pOutBuffer, const std::vector<Node>& pmap_vec, const int maxmiumPath)
 {
 
 	if (target.m_x == -1 && target.m_y == -1)
@@ -195,16 +196,10 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 
 	bool start_reached = false;
 
-	while (!start_reached)
+	while (true)
 	{
-		if (current.m_x < 0 || current.m_y < 0)
-		{
-			return{};
-		}
-
 		if (current.m_x == start.m_x && current.m_y == start.m_y)
 		{
-			//This is being weird in the loop above..
 			break;
 		}
 
@@ -221,10 +216,15 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 		*pOutBuffer = x;
 		++pOutBuffer;
 	}
+
+	if (return_path.size() > maxmiumPath)
+	{
+		return{};
+	}
 	return return_path;
 }
 
-Node a_star_jps(Graph& graph, const Node& start, const Node& target, const int maximum_recursion_depth);
+Node a_star_jps(Graph& graph, const Node& start, const Node& target);
 Node jump_north(const Node& node, const Node& parent, const Node& target, Graph& graph);
 Node jump_east(const Node& node, const Node& parent, const Node& target, Graph& graph);
 Node jump_south(const Node& node, const Node& parent, const Node& target, Graph& graph);
@@ -239,9 +239,9 @@ int FindPath(const int nStartX, const int nStartY,
 	Node target = { nTargetX, nTargetY };
 
 	Graph* graph = new Graph(nMapWidth, nMapHeight, pMap);
-	auto target_found = a_star_jps(*graph, start, target, nOutBufferSize);
-	auto res = reconstruct_path(start, target_found, nMapWidth, pOutBuffer, graph->m_map_rep);
-	
+	auto target_found = a_star_jps(*graph, start, target);
+	auto res = reconstruct_path(start, target_found, nMapWidth, pOutBuffer, graph->m_map_rep, nOutBufferSize);
+
 	delete graph;
 
 	return res.size() == 0 ? -1 : res.size();
@@ -356,7 +356,7 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 		}
 
 		current = Node{ current.m_x, current.m_y + 1, current.m_x, current.m_y };
-	
+
 	}
 
 	return *graph.m_bad_node;
@@ -401,7 +401,7 @@ Node jump_west(const Node& node, const Node& parent, const Node& target, Graph& 
 	return *graph.m_bad_node;
 }
 
-Node jump(const Node& current, const Node& parent, const Node& target, Graph& graph, const int maximum_recursion_depth)
+Node jump(const Node& current, const Node& parent, const Node& target, Graph& graph)
 {
 	//Get the direction of the incomming node by removing the parent from it
 	int dx = current.m_x - parent.m_x;
@@ -410,12 +410,6 @@ Node jump(const Node& current, const Node& parent, const Node& target, Graph& gr
 	if (!graph.reachable(current.m_x, current.m_y))
 	{
 		//Not reachable
-		return *graph.m_bad_node;
-	}
-
-	if (current.m_x + current.m_y > maximum_recursion_depth)
-	{
-		//Path is too long, don't let it continue searching
 		return *graph.m_bad_node;
 	}
 
@@ -450,7 +444,7 @@ void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 {
 	graph.m_prune_neighbours.clear();
 	//Check if the current node has a parent, if it is the first node
-	if (graph.valid_node(parent.m_x, parent.m_y) && 
+	if (graph.valid_node(parent.m_x, parent.m_y) &&
 		!(node.m_x == parent.m_x && node.m_y == parent.m_y))
 	{
 		int dx = (node.m_x - parent.m_x);
@@ -504,15 +498,14 @@ void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 	}
 }
 
-void identify_successors(const Node& current, const Node& parent, const Node& target, Graph& graph, const int maximum_recursion_depth)
+void identify_successors(const Node& current, const Node& parent, const Node& target, Graph& graph)
 {
 	prune_neighbours(current, parent, graph);
 	graph.m_successors.clear();
 
 	for (auto& neighbour : graph.m_prune_neighbours)
 	{
-		//Node jump_node = jump(neighbour, current, target, graph, maximum_recursion_depth);
-		Node jump_node = jump(neighbour, current, target, graph, maximum_recursion_depth);
+		Node jump_node = jump(neighbour, current, target, graph);
 
 		//If the node is valid, add to successors and to the vector of visited nodes
 		if (graph.valid_node(jump_node.m_x, jump_node.m_y))
@@ -524,7 +517,7 @@ void identify_successors(const Node& current, const Node& parent, const Node& ta
 }
 
 //A* Search with JPS (Jump point search)
-Node a_star_jps(Graph& graph, const Node& start, const Node& target, const int maximum_recursion_depth)
+Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 {
 	auto correct_start = Node{ start.m_x, start.m_y, start.m_x, start.m_y };
 	correct_start.m_closed = true;
@@ -546,7 +539,7 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target, const int m
 		}
 
 		//Update successors
-		identify_successors(current, Node{ current.m_px, current.m_py }, target, graph, maximum_recursion_depth);
+		identify_successors(current, Node{ current.m_px, current.m_py }, target, graph);
 
 		for (auto& x : graph.m_successors)
 		{
@@ -555,7 +548,7 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target, const int m
 			//Weights are always one
 			int new_cost = graph.cost_map_vec[index] + 1;
 
-			if (graph.cost_map_vec[index] == 0 || 
+			if (graph.cost_map_vec[index] == 0 ||
 				new_cost < graph.cost_map_vec[index])
 			{
 				double priority = new_cost + manhattan_heuristic(x.m_x, x.m_y, target.m_x, target.m_y);
