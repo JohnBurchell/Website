@@ -34,24 +34,6 @@ int manhattan_heuristic(const int x1, const int y1, const int x2, const int y2)
 	return abs(x1 - x2) + abs(y1 - y2);
 }
 
-int manhattan_heuristic(const Node& a, const Node& b)
-{
-	//Using Manhattan distance for now
-	return 1 * manhattan_heuristic(a.m_x, a.m_y, b.m_x, b.m_y);
-}
-
-double octile_heuristic(const Node& a, const Node& b)
-{
-	//auto D = 1;
-	//auto D2 = sqrt(2);
-
-	auto dx = std::abs(a.m_x - b.m_x);
-	auto dy = std::abs(a.m_y - b.m_y);
-
-	return std::max(dx, dy) + 0.41 * std::min(dx, dy); //Courtesy of GameAIPro (Rabin)
-													   //return D * (dx + dy) + (D2 - 2 * D) * std::min(dx, dy);
-}
-
 typedef std::pair<Node, double> Node_Pair;
 typedef std::vector<Node> Neighbour_Vector;
 
@@ -175,26 +157,21 @@ public:
 
 	std::vector<Node> m_map_rep;
 	std::vector<int> cost_map_vec;
-
-	//Testing
-	bool in_use;
 };
 
 std::vector<int> reconstruct_path(const Node& start, const Node& target, const int mapWidth,
 	int* pOutBuffer, const std::vector<Node>& pmap_vec, const int maxmiumPath)
 {
-
 	if (target.m_x == -1 && target.m_y == -1)
 	{
 		return{};
 	}
+
 	std::vector<int> return_path{};
 
 	Node current = pmap_vec[target.m_px + (mapWidth * target.m_py)];
 	return_path.push_back((target.m_x + (target.m_y * mapWidth)));
 	return_path.push_back((current.m_x + (current.m_y * mapWidth)));
-
-	bool start_reached = false;
 
 	while (true)
 	{
@@ -207,20 +184,24 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 		return_path.push_back((current.m_x + (current.m_y * mapWidth)));
 	}
 
-	//Get rid of the last entry -> it's the start
+	//Always pop the top -> If the node is the target then it's also the start node
+	//Notes say to not include the start node, return 1 though regardless?
 	return_path.pop_back();
 	std::reverse(return_path.begin(), return_path.end());
 
+	int count = 0;
 	for (auto& x : return_path)
 	{
 		*pOutBuffer = x;
 		++pOutBuffer;
+		++count;
+
+		if (count == maxmiumPath)
+		{
+			return return_path;
+		}
 	}
 
-	if (return_path.size() > maxmiumPath)
-	{
-		return{};
-	}
 	return return_path;
 }
 
@@ -235,6 +216,12 @@ int FindPath(const int nStartX, const int nStartY,
 	const unsigned char* pMap, const int nMapWidth, const int nMapHeight,
 	int* pOutBuffer, const int nOutBufferSize)
 {
+
+	if (nStartX == nTargetX && nStartY == nTargetY)
+	{
+		return 0;
+	}
+
 	Node start = { nStartX, nStartY };
 	Node target = { nTargetX, nTargetY };
 
@@ -244,7 +231,12 @@ int FindPath(const int nStartX, const int nStartY,
 
 	delete graph;
 
-	return res.size() == 0 ? -1 : res.size();
+	if (target_found.m_x == -1 && target_found.m_y == -1)
+	{
+		return -1;
+	}
+
+	return res.size();
 }
 
 Node jump_north(const Node& node, const Node& parent, const Node& target, Graph& graph)
@@ -266,8 +258,8 @@ Node jump_north(const Node& node, const Node& parent, const Node& target, Graph&
 		//Add to the vec of visited nodes
 		graph.add_to_vec(current, Node{ current.m_px, current.m_py });
 
-		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
-			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
+		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
+			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y + 1))))
 		{
 			return current;
 		}
@@ -293,12 +285,14 @@ Node jump_east(const Node& node, const Node& parent, const Node& target, Graph& 
 
 	while (true)
 	{
-
 		if (!graph.reachable(current.m_x, current.m_y))
 		{
 			//Not reachable
 			return *graph.m_bad_node;
 		}
+
+		auto test = graph.get_index_value(current.m_x, current.m_y);
+		auto index_val = graph.m_map_rep[test];
 
 		if (current.m_x == target.m_x && current.m_y == target.m_y)
 		{
@@ -356,7 +350,6 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 		}
 
 		current = Node{ current.m_x, current.m_y + 1, current.m_x, current.m_y };
-
 	}
 
 	return *graph.m_bad_node;
@@ -382,15 +375,9 @@ Node jump_west(const Node& node, const Node& parent, const Node& target, Graph& 
 		//Add to the vec of visited nodes
 		graph.add_to_vec(current, Node{ current.m_px, current.m_py });
 
-		if ((graph.reachable(current.m_x, current.m_y + 1) && (!graph.reachable(current.m_x - 1, current.m_y + 1))) ||
-			(graph.reachable(current.m_x, current.m_y - 1) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
+		if ((graph.reachable(current.m_x, current.m_y + 1) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
+			(graph.reachable(current.m_x, current.m_y - 1) && (!graph.reachable(current.m_x + 1, current.m_y - 1))))
 		{
-			//Check for dead end?
-			if (!graph.reachable(current.m_x - 1, current.m_y))
-			{
-				return *graph.m_bad_node;
-			}
-
 			return current;
 		}
 
@@ -416,7 +403,7 @@ Node jump(const Node& current, const Node& parent, const Node& target, Graph& gr
 	Node new_node{};
 
 	//North
-	if (dx != 0 && dy == -1)
+	if (dx == 0 && dy == -1)
 	{
 		new_node = jump_north(current, parent, target, graph);
 	}
@@ -545,7 +532,7 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 		{
 			auto index = graph.get_index_value(x.m_x, x.m_y);
 
-			//Weights are always one
+			//Weights are always one, times it by the differnece to the previous node(aka amount of jumps)
 			int new_cost = graph.cost_map_vec[index] + 1;
 
 			if (graph.cost_map_vec[index] == 0 ||
@@ -561,3 +548,4 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 	//No target found
 	return Node{ -1, -1 };
 }
+
