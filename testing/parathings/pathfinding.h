@@ -178,44 +178,7 @@ public:
 	CostMap m_current_cost;
 };
 
-//A* Search
-void a_star(Graph& graph, const Node& start, const Node& target, const unsigned char* pMap)
-{
-	//Set start node and start cost
-	graph.m_frontier.emplace(start, 0);
-	graph.m_came_from[start] = start;
-	graph.m_current_cost[start] = 0;
 
-	while (!graph.m_frontier.empty())
-	{
-		//Pop the top node off the queue
-		auto current = graph.m_frontier.top().first;
-		graph.m_frontier.pop();
-
-		if (current == target)
-		{
-			break;
-		}
-
-		for (auto& next : graph.neighbours(current.m_x, current.m_y))
-		{
-			//Get new cost - Weight added is always 1
-			int new_cost = graph.m_current_cost[current] + 1;
-
-			if (!graph.m_current_cost.count(next) || new_cost < graph.m_current_cost[next])
-			{
-				graph.m_current_cost[next] = new_cost;
-
-				//Get the new priority by adding the new cost to the chosen heuristic
-				double priority = new_cost + octile_heuristic(next, target);
-
-				//Push back into the queue and update came_from map
-				graph.m_frontier.emplace(next, priority);
-				graph.m_came_from[next] = current;
-			}
-		}
-	}
-}
 
 std::vector<int> reconstruct_path(const Node& start, const Node& target, NodeMap& came_from, const int mapWidth, int* pOutBuffer, int nOutBufferSize)
 {

@@ -3,14 +3,8 @@
 #include <functional>
 #include <algorithm>
 #include <memory>
+#include <map>
 
-/*
-I really don't understand how this can be exceeding the memory limit of 1024 mb -> I think I had circular loops due to sloppy test
-
-running 10 searches on the same graph with different start locations is done in under 2~secs at 250,000 nodes.
-
-Got rid of the maps and now just have two vectors containing costs and another that has the closed / parents of the nodes that have been visited
-*/
 struct Node
 {
 	Node() : m_x(-1), m_y(-1), m_px(-1), m_py(-1), m_closed(false) {}
@@ -120,8 +114,6 @@ public:
 				//Convert the combined position to get the real index value from pMap
 				int real_index = get_index_value(new_x, new_y);
 
-				auto test = m_pMap[real_index];
-
 				//If the neighbour is valid
 				if (real_index <= m_pmap_size && m_pMap[real_index] == 1)
 				{
@@ -139,7 +131,6 @@ public:
 	{
 		//Put the node into its correct place in the vector
 		int index = current.m_x + (current.m_y * m_width);
-		auto node_to_test = m_map_rep[index];
 		m_map_rep[index] = Node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
 		m_map_rep[index].m_closed = true;
 	}
@@ -174,12 +165,13 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 
 	std::vector<int> return_path{};
 
-	auto test = pmap_vec[800];
-
 	Node current = pmap_vec[target.m_x + (target.m_y * mapWidth)];
-	return_path.push_back(target.m_x + (target.m_y * mapWidth));
 
-	//TOOD -> Fix the counting to the next lines
+	//Push the target onto the end
+	return_path.push_back(current.m_x + (current.m_y * mapWidth));
+
+
+	//Starting from the end, aiming for the numbers in reverse
 	while (true)
 	{
 		if (current.m_x == start.m_x && current.m_y == start.m_y)
@@ -190,26 +182,26 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 		if (current.m_x != current.m_px)
 		{
 			//Need to move either south or down for the path
-			int count = current.m_y - current.m_px;
-			if (count > 0)
+			int count = current.m_px - current.m_x;
+			if (count < 0)
 			{
-				//Going up
-				for (int i = 1; i <= count; ++i)
+				//Going left
+				for (int i = 1; i <= std::abs(count); ++i)
 				{
-					auto new_x = current.m_px + i;
-					auto new_y = current.m_py;
-					auto test_index = (current.m_px + ((current.m_py + i) * mapWidth));
+					auto new_x = current.m_x - i;
+					auto new_y = current.m_y;
+					auto test_index = (new_x + (new_y * mapWidth));
 					return_path.push_back(test_index);
 				}
 			}
 			else
 			{
-				//Going down
-				for (int i = -1; i >= count; --i)
+				//Going right
+				for (int i = 1; i <= count; ++i)
 				{
 					auto new_x = current.m_x + i;
 					auto new_y = current.m_y;
-					auto test_index = (current.m_x + ((current.m_y + i) * mapWidth));
+					auto test_index = (new_x + (new_y * mapWidth));
 					return_path.push_back(test_index);
 				}
 			}
@@ -218,26 +210,26 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 		else if (current.m_y != current.m_py)
 		{
 			//Need to move either south or north for rebuilding the path
-			int count = current.m_y - current.m_py;
-			if (count > 0)
+			int count = current.m_py - current.m_y;
+			if (count < 0)
 			{
 				//Going up
-				for (int i = 1; i <= count; ++i)
+				for (int i = 1; i <= std::abs(count); ++i)
 				{
-					auto new_x = current.m_px;
-					auto new_y = current.m_py + i;
-					auto test_index = (current.m_px + ((current.m_py + i) * mapWidth));
+					auto new_x = current.m_x;
+					auto new_y = current.m_y - i;
+					auto test_index = (new_x + (new_y * mapWidth));
 					return_path.push_back(test_index);
 				}
 			}
 			else
 			{
 				//Going down
-				for (int i = -1; i >= count; --i)
+				for (int i = 1; i <= count; ++i)
 				{
 					auto new_x = current.m_x;
-					auto new_y = current.m_y - i;
-					auto test_index = (current.m_x + ((current.m_y + i) * mapWidth));
+					auto new_y = current.m_y + i;
+					auto test_index = (new_x + (new_y * mapWidth));
 					return_path.push_back(test_index);
 				}
 			}
@@ -248,6 +240,7 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 
 	//Always pop the top -> If the node is the target then it's also the start node
 	//Notes say to not include the start node, return 1 though regardless?
+	return_path.pop_back();
 	std::reverse(return_path.begin(), return_path.end());
 
 	int count = 0;
@@ -279,6 +272,10 @@ int FindPath(const int nStartX, const int nStartY,
 {
 	if (nStartX == nTargetX && nStartY == nTargetY)
 	{
+		if (nOutBufferSize > 0)
+		{
+			*pOutBuffer = nStartX + (nStartY * nMapWidth);
+		}
 		return 0;
 	}
 
@@ -300,6 +297,7 @@ int FindPath(const int nStartX, const int nStartY,
 Node jump_north(const Node& node, const Node& parent, const Node& target, Graph& graph)
 {
 	auto current = Node{ node.m_x, node.m_y, parent.m_x, parent.m_y };
+
 	while (true)
 	{
 		if (!graph.reachable(current.m_x, current.m_y))
@@ -312,10 +310,9 @@ Node jump_north(const Node& node, const Node& parent, const Node& target, Graph&
 		{
 			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
 		}
-
-
-		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
-			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y + 1))))
+		
+		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
+			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
 		{
 			return current;
 		}
@@ -357,7 +354,6 @@ Node jump_east(const Node& node, const Node& parent, const Node& target, Graph& 
 		{
 			return current;
 		}
-
 		current = Node{ current.m_x + 1, current.m_y, current.m_x, current.m_y };
 
 	}
@@ -382,8 +378,8 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 		}
 
 
-		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
-			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
+		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
+			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y + 1))))
 		{
 			return current;
 		}
@@ -485,9 +481,9 @@ void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 
 		if (dx != 0)
 		{
-			Node n1{ node.m_x, node.m_y - 1};
-			Node n2{ node.m_x, node.m_y + 1};
-			Node n3{ node.m_x + dx, node.m_y};
+			Node n1{ node.m_x, node.m_y - 1 };
+			Node n2{ node.m_x, node.m_y + 1 };
+			Node n3{ node.m_x + dx, node.m_y };
 
 			if (graph.reachable(n1.m_x, n1.m_y))
 			{
@@ -504,9 +500,9 @@ void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 		}
 		else if (dy != 0)
 		{
-			Node n1{ node.m_x - 1, node.m_y};
-			Node n2{ node.m_x + 1, node.m_y};
-			Node n3{ node.m_x, node.m_y + dy};
+			Node n1{ node.m_x - 1, node.m_y };
+			Node n2{ node.m_x + 1, node.m_y };
+			Node n3{ node.m_x, node.m_y + dy };
 
 			if (graph.reachable(n1.m_x, n1.m_y))
 			{
@@ -577,28 +573,17 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 		{
 			auto index = graph.get_index_value(x.m_x, x.m_y);
 
-			if(x.m_x == 33 && x.m_y == 0)
-			{
-				auto pause = true;
-			}
-
-			if (x.m_x == 13 && x.m_y == 0)
-			{
-				auto pause = true;
-			}
-
-			//Weights are always one
-			int new_cost = graph.cost_map_vec[index] + 1;
-			int priority = new_cost + manhattan_heuristic(x.m_x, x.m_y, target.m_x, target.m_y);
+			//adds the distance from the last node, plus one to make the cost
+			int potential_cost = manhattan_heuristic(x.m_x, x.m_y, start.m_x, start.m_y);
+			int potential_new_prio = potential_cost + manhattan_heuristic(x.m_x, x.m_y, target.m_x, target.m_y);
 
 			if (!graph.m_map_rep[index].m_closed ||
-				priority < graph.cost_map_vec[index])
+				potential_new_prio < graph.cost_map_vec[index])
 			{
-				graph.cost_map_vec[index] = priority;
-				graph.m_frontier.emplace(x, priority);
+				graph.cost_map_vec[index] = potential_cost;
+				graph.m_frontier.emplace(x, potential_new_prio);
 				graph.add_to_vec(x, current);
 				graph.m_map_rep[index].m_closed = true;
-
 			}
 		}
 	}
