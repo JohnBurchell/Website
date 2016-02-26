@@ -7,15 +7,19 @@
 
 struct Node
 {
-	Node() : m_x(-1), m_y(-1), m_px(-1), m_py(-1), m_closed(false) {}
-	Node(const int x, const int y, const int px = -1, const int py = -1) : m_x(x), m_y(y), m_px(px), m_py(py), m_closed(false) {}
+	Node() : m_x(-1), m_y(-1), m_px(-1), m_py(-1), m_closed(false), m_opened(false), parent_index(-1) {}
+	Node(const int x, const int y, const int px = -1, const int py = -1) : 
+		m_x(x), m_y(y), m_px(px), m_py(py), m_closed(false), m_opened(false), parent_index(-1) {}
 	int m_x;
 	int m_y;
 
 	int m_px;
 	int m_py;
+	
+	int parent_index;
 
 	bool m_closed;
+	bool m_opened;
 
 	friend bool operator<(const Node& lhs, const Node& rhs)
 	{
@@ -39,6 +43,14 @@ int manhattan_heuristic(const int x1, const int y1, const int x2, const int y2)
 	return abs(x1 - x2) + abs(y1 - y2);
 }
 
+int octile_heuristic(const int x1, const int y1, const int x2, const int y2)
+{
+	auto F = std::sqrt(2 - 1);
+	auto dx = std::abs(x1 - x2);
+	auto dy = std::abs(y1 - y2);
+	return (dx < dy) ? F * dx + dy : F * dy + dx;
+}
+
 int FindPath(const int nStartX, const int nStartY,
 	const int nTargetX, const int nTargetY,
 	const unsigned char* pMap, const int nMapWidth, const int nMapHeight,
@@ -59,15 +71,10 @@ public:
 		m_bad_node(new Node{}),
 		cost_map_vec(m_pmap_size, 0)
 	{
-		//Reserve space for four possible neighbours
 		m_neighbour_vector.reserve(4);
 		m_neighbour_vector = { { -1, -1 },{ -1, -1 },{ -1, -1 },{ -1, -1 } };
 		m_prune_neighbours.reserve(4);
-
-		//I don't think i'll ever find more than 4 but reserving 10 to be safe
 		m_successors.reserve(10);
-
-		//Reserve the vector to hold nodes once they have been discovered -> This feels a bit silly in hindsight
 		m_map_rep = std::vector<Node>(m_pmap_size, Node{ -1, -1 });
 	}
 
@@ -93,7 +100,7 @@ public:
 
 	bool valid_node(const int x, const int y)
 	{
-		return x >= 0 && y >= 0 && m_map_rep[get_index_value(x, y)].m_closed == false;
+		return x >= 0 && y >= 0;
 	}
 
 	//Get the neighbours of a given node in the map
@@ -132,7 +139,6 @@ public:
 		//Put the node into its correct place in the vector
 		int index = current.m_x + (current.m_y * m_width);
 		m_map_rep[index] = Node{ current.m_x, current.m_y, parent.m_x, parent.m_y };
-		m_map_rep[index].m_closed = true;
 	}
 
 private:
@@ -158,11 +164,6 @@ public:
 std::vector<int> reconstruct_path(const Node& start, const Node& target, const int mapWidth,
 	int* pOutBuffer, const std::vector<Node>& pmap_vec, const int maxmiumPath)
 {
-	if (target.m_x == -1 && target.m_y == -1)
-	{
-		return{};
-	}
-
 	std::vector<int> return_path{};
 
 	Node current = pmap_vec[target.m_x + (target.m_y * mapWidth)];
@@ -170,8 +171,6 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 	//Push the target onto the end
 	return_path.push_back(current.m_x + (current.m_y * mapWidth));
 
-
-	//Starting from the end, aiming for the numbers in reverse
 	while (true)
 	{
 		if (current.m_x == start.m_x && current.m_y == start.m_y)
@@ -239,7 +238,6 @@ std::vector<int> reconstruct_path(const Node& start, const Node& target, const i
 	}
 
 	//Always pop the top -> If the node is the target then it's also the start node
-	//Notes say to not include the start node, return 1 though regardless?
 	return_path.pop_back();
 	std::reverse(return_path.begin(), return_path.end());
 
@@ -270,27 +268,18 @@ int FindPath(const int nStartX, const int nStartY,
 	const unsigned char* pMap, const int nMapWidth, const int nMapHeight,
 	int* pOutBuffer, const int nOutBufferSize)
 {
-	if (nStartX == nTargetX && nStartY == nTargetY)
-	{
-		if (nOutBufferSize > 0)
-		{
-			*pOutBuffer = nStartX + (nStartY * nMapWidth);
-		}
-		return 0;
-	}
-
 	Node start = { nStartX, nStartY };
 	Node target = { nTargetX, nTargetY };
 
 	Graph graph = Graph(nMapWidth, nMapHeight, pMap);
 	auto target_found = a_star_jps(graph, start, target);
-	auto res = reconstruct_path(start, target_found, nMapWidth, pOutBuffer, graph.m_map_rep, nOutBufferSize);
 
 	if (target_found.m_x == -1 && target_found.m_y == -1)
 	{
 		return -1;
 	}
 
+	auto res = reconstruct_path(start, target_found, nMapWidth, pOutBuffer, graph.m_map_rep, nOutBufferSize);
 	return res.size();
 }
 
@@ -310,9 +299,9 @@ Node jump_north(const Node& node, const Node& parent, const Node& target, Graph&
 		{
 			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
 		}
-		
-		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
-			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
+
+		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - (-1)))) ||
+			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - (-1)))))
 		{
 			return current;
 		}
@@ -322,7 +311,6 @@ Node jump_north(const Node& node, const Node& parent, const Node& target, Graph&
 
 		if (graph.reachable(east.m_x, east.m_y) || graph.reachable(west.m_x, west.m_y))
 		{
-			//Then a jump node was found, return it
 			return current;
 		}
 
@@ -340,7 +328,6 @@ Node jump_east(const Node& node, const Node& parent, const Node& target, Graph& 
 	{
 		if (!graph.reachable(current.m_x, current.m_y))
 		{
-			//Not reachable
 			return *graph.m_bad_node;
 		}
 
@@ -368,7 +355,6 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 	{
 		if (!graph.reachable(current.m_x, current.m_y))
 		{
-			//Not reachable
 			return *graph.m_bad_node;
 		}
 
@@ -378,8 +364,8 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 		}
 
 
-		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
-			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y + 1))))
+		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
+			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
 		{
 			return current;
 		}
@@ -389,7 +375,6 @@ Node jump_south(const Node& node, const Node& parent, const Node& target, Graph&
 
 		if (graph.reachable(east.m_x, east.m_y) || graph.reachable(west.m_x, west.m_y))
 		{
-			//Then a jump node was found, return it
 			return current;
 		}
 
@@ -408,7 +393,6 @@ Node jump_west(const Node& node, const Node& parent, const Node& target, Graph& 
 
 		if (!graph.reachable(current.m_x, current.m_y))
 		{
-			//Not reachable or it's been visited before
 			return *graph.m_bad_node;
 		}
 
@@ -504,6 +488,7 @@ void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 			Node n2{ node.m_x + 1, node.m_y };
 			Node n3{ node.m_x, node.m_y + dy };
 
+
 			if (graph.reachable(n1.m_x, n1.m_y))
 			{
 				graph.m_prune_neighbours.push_back(n1);
@@ -518,7 +503,7 @@ void prune_neighbours(const Node& node, const Node& parent, Graph& graph)
 			}
 		}
 
-	}//if !(parent)
+	}//if parent is not valid
 	else
 	{
 		//Else just get all the neighbours
@@ -548,7 +533,7 @@ void identify_successors(const Node& current, const Node& parent, const Node& ta
 Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 {
 	auto correct_start = Node{ start.m_x, start.m_y, start.m_x, start.m_y };
-	correct_start.m_closed = true;
+	correct_start.m_opened = true;
 	graph.m_frontier.emplace(correct_start, 0);
 
 	//Set the start to the correct values
@@ -558,6 +543,7 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 	while (!graph.m_frontier.empty())
 	{
 		auto current = graph.m_frontier.top().first;
+		current.m_closed = true;
 		graph.m_frontier.pop();
 
 		if (current.m_x == target.m_x && current.m_y == target.m_y)
@@ -569,21 +555,40 @@ Node a_star_jps(Graph& graph, const Node& start, const Node& target)
 		//Update successors
 		identify_successors(current, Node{ current.m_px, current.m_py }, target, graph);
 
-		for (auto& x : graph.m_successors)
+		for (auto& jump_point : graph.m_successors)
 		{
-			auto index = graph.get_index_value(x.m_x, x.m_y);
+			auto jump_point_index = graph.get_index_value(jump_point.m_x, jump_point.m_y);
+			auto current_index = graph.get_index_value(current.m_x, current.m_y);
+
+			if (graph.m_map_rep[jump_point_index].m_closed)
+			{
+				continue;
+			}
 
 			//adds the distance from the last node, plus one to make the cost
-			int potential_cost = manhattan_heuristic(x.m_x, x.m_y, start.m_x, start.m_y);
-			int potential_new_prio = potential_cost + manhattan_heuristic(x.m_x, x.m_y, target.m_x, target.m_y);
+			int distance = manhattan_heuristic(jump_point.m_x, jump_point.m_y, current.m_x, current.m_y);
+			int cost = graph.cost_map_vec[current_index] + distance;
+			//int cost = graph.cost_map_vec[index];
 
-			if (!graph.m_map_rep[index].m_closed ||
-				potential_new_prio < graph.cost_map_vec[index])
+			if (!graph.m_map_rep[jump_point_index].m_opened ||
+				cost < graph.cost_map_vec[jump_point_index])
 			{
-				graph.cost_map_vec[index] = potential_cost;
-				graph.m_frontier.emplace(x, potential_new_prio);
-				graph.add_to_vec(x, current);
-				graph.m_map_rep[index].m_closed = true;
+				graph.cost_map_vec[jump_point_index] = cost;
+				auto man_to_target = manhattan_heuristic(jump_point.m_x, jump_point.m_y, target.m_x, target.m_y);
+				int new_f_value = cost + manhattan_heuristic(jump_point.m_x, jump_point.m_y, target.m_x, target.m_y);
+
+				if (!graph.m_map_rep[jump_point_index].m_opened)
+				{
+					graph.m_frontier.emplace(jump_point, new_f_value);
+					graph.m_map_rep[jump_point_index].m_opened = true;
+					graph.add_to_vec(jump_point, current);
+					jump_point.parent_index = current_index;
+				}
+				else
+				{
+					graph.m_frontier.emplace(jump_point, new_f_value);
+					//Update the current value
+				}
 			}
 		}
 	}

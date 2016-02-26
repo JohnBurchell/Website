@@ -39,6 +39,14 @@
 //	return abs(x1 - x2) + abs(y1 - y2);
 //}
 //
+//int octile_heuristic(const int x1, const int y1, const int x2, const int y2)
+//{
+//	auto F = std::sqrt(2 - 1);
+//	auto dx = std::abs(x1 - x2);
+//	auto dy = std::abs(y1 - y2);
+//	return (dx < dy) ? F * dx + dy : F * dy + dx;
+//}
+//
 //int FindPath(const int nStartX, const int nStartY,
 //	const int nTargetX, const int nTargetY,
 //	const unsigned char* pMap, const int nMapWidth, const int nMapHeight,
@@ -153,7 +161,6 @@
 //
 //	std::vector<Node> m_map_rep;
 //	std::vector<int> cost_map_vec;
-//	std::map<Node, Node> path_map;
 //};
 //
 //std::vector<int> reconstruct_path(const Node& start, const Node& target, const int mapWidth,
@@ -171,8 +178,6 @@
 //	//Push the target onto the end
 //	return_path.push_back(current.m_x + (current.m_y * mapWidth));
 //
-//
-//	//Starting from the end, aiming for the numbers in reverse
 //	while (true)
 //	{
 //		if (current.m_x == start.m_x && current.m_y == start.m_y)
@@ -271,15 +276,6 @@
 //	const unsigned char* pMap, const int nMapWidth, const int nMapHeight,
 //	int* pOutBuffer, const int nOutBufferSize)
 //{
-//	if (nStartX == nTargetX && nStartY == nTargetY)
-//	{
-//		if (nOutBufferSize > 0)
-//		{
-//			*pOutBuffer = nStartX + (nStartY * nMapWidth);
-//		}
-//		return 0;
-//	}
-//
 //	Node start = { nStartX, nStartY };
 //	Node target = { nTargetX, nTargetY };
 //
@@ -312,8 +308,8 @@
 //			return Node{ current.m_x, current.m_y, current.m_px, current.m_py };
 //		}
 //
-//		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
-//			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
+//		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - (-1)))) ||
+//			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - (-1)))))
 //		{
 //			return current;
 //		}
@@ -379,8 +375,8 @@
 //		}
 //
 //
-//		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y + 1))) ||
-//			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y + 1))))
+//		if ((graph.reachable(current.m_x + 1, current.m_y) && (!graph.reachable(current.m_x + 1, current.m_y - 1))) ||
+//			(graph.reachable(current.m_x - 1, current.m_y) && (!graph.reachable(current.m_x - 1, current.m_y - 1))))
 //		{
 //			return current;
 //		}
@@ -486,6 +482,7 @@
 //			Node n2{ node.m_x, node.m_y + 1 };
 //			Node n3{ node.m_x + dx, node.m_y };
 //
+//
 //			if (graph.reachable(n1.m_x, n1.m_y))
 //			{
 //				graph.m_prune_neighbours.push_back(n1);
@@ -504,6 +501,7 @@
 //			Node n1{ node.m_x - 1, node.m_y };
 //			Node n2{ node.m_x + 1, node.m_y };
 //			Node n3{ node.m_x, node.m_y + dy };
+//
 //
 //			if (graph.reachable(n1.m_x, n1.m_y))
 //			{
@@ -541,7 +539,6 @@
 //		if (graph.valid_node(jump_node.m_x, jump_node.m_y))
 //		{
 //			graph.m_successors.push_back(jump_node);
-//			graph.path_map[neighbour] = current;
 //		}
 //	}
 //}
@@ -574,19 +571,35 @@
 //		for (auto& x : graph.m_successors)
 //		{
 //			auto index = graph.get_index_value(x.m_x, x.m_y);
+//			auto current_index = graph.get_index_value(current.m_x, current.m_y);
+//
+//			if (graph.m_map_rep[index].m_closed)
+//			{
+//				continue;
+//			}
 //
 //			//adds the distance from the last node, plus one to make the cost
-//			int potential_cost = manhattan_heuristic(x.m_x, x.m_y, start.m_x, start.m_y);
-//			int potential_new_prio = potential_cost + manhattan_heuristic(x.m_x, x.m_y, target.m_x, target.m_y);
+//			int distance = manhattan_heuristic(x.m_x, x.m_y, current.m_x, current.m_y);
+//			int cost = graph.cost_map_vec[current_index] + distance;
+//			//int cost = graph.cost_map_vec[index];
 //
 //			if (!graph.m_map_rep[index].m_closed ||
-//				potential_new_prio < graph.cost_map_vec[index])
+//				cost < graph.cost_map_vec[index])
 //			{
-//				graph.cost_map_vec[index] = potential_cost;
-//				graph.m_frontier.emplace(x, potential_new_prio);
-//				graph.add_to_vec(x, current);
-//				graph.m_map_rep[index].m_closed = true;
+//				graph.cost_map_vec[index] = cost;
+//				int potential_new_prio = cost + manhattan_heuristic(x.m_x, x.m_y, target.m_x, target.m_y);
 //
+//				if (!graph.m_map_rep[index].m_closed)
+//				{
+//					graph.m_frontier.emplace(x, potential_new_prio);
+//					graph.m_map_rep[index].m_closed = true;
+//					graph.add_to_vec(x, current);
+//				}
+//				else
+//				{
+//					graph.m_frontier.emplace(x, potential_new_prio);
+//					//Update the current value
+//				}
 //			}
 //		}
 //	}
