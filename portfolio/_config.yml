@@ -12,11 +12,12 @@ description: > # this means to ignore newlines until "baseurl:"
   I'm John, an avid programmer with a passion for games. This is a small portfolio to show off some
   of my own personal projects, somethings from school and other little bits on the side. Feel free to check
   out my programming blog or my painting blog!
-url: "http://www.johnburchell.co.uk" # the base hostname & protocol for your site
+url: "http://portfolio.www.johnburchell.co.uk" # the base hostname & protocol for your site
 twitter_username: JohnBurch
 github_username:  JohnBurchell
 linkedin_username: https://se.linkedin.com/in/johnburch
 warhammer_link: http://warhammer.johnburchell.co.uk
+programming_blog_ling: http://johnburchell.co.uk
 
 # Build settings
 markdown: kramdown
